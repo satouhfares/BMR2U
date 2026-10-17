@@ -1,0 +1,79 @@
+** sch_path: /foss/designs/BMR2U.sch
+**.subckt BMR2U
+VDD VDD GND 3.3
+XM1 net3 net1 net4 0 sg13_hv_nmos w=8.6u l=4u ng=1 m=10 mm_ok=1
+XM2 net1 net1 0 0 sg13_hv_nmos w=4.3u l=4u ng=1 m=5 mm_ok=1
+XM3 net1 vb VDD VDD sg13_hv_pmos w=5.13u l=4u ng=1 m=1 mm_ok=1
+XM4 net3 vb VDD VDD sg13_hv_pmos w=5.13u l=4u ng=1 m=1 mm_ok=1
+XM5 net2 net3 0 0 sg13_hv_nmos w=3u l=4u ng=1 m=1 mm_ok=1
+XM6 vb net1 0 0 sg13_hv_nmos w=3u l=4u ng=1 m=1 mm_ok=1
+XM7 net2 net2 VDD VDD sg13_hv_pmos w=15.1u l=4u ng=2 m=1 mm_ok=1
+XM8 vb net2 VDD VDD sg13_hv_pmos w=15.1u l=4u ng=2 m=1 mm_ok=1
+XR1 net4 0 gnd rppd w=0.5e-6 l=56.4e-6 m=1 b=0 mm_ok=1
+**** begin user architecture code
+
+
+.include BMR2U.save
+.control
+* ---------- Operating point ----------
+op
+write BMR2U.raw
+let id1_uA = abs(@n.xm1.nsg13_hv_nmos[ids])*1e6
+let id2_uA = abs(@n.xm2.nsg13_hv_nmos[ids])*1e6
+let gm1_uS = @n.xm1.nsg13_hv_nmos[gm]*1e6
+let gm2_uS = @n.xm2.nsg13_hv_nmos[gm]*1e6
+let vgs_M1 = v(net1)-v(net4)
+let vgs_M2 = v(net1)
+let vdsat_M1 = @n.xm1.nsg13_hv_nmos[vdss]
+let vdsat_M2 = @n.xm2.nsg13_hv_nmos[vdss]
+let vdsat_M3 = abs(@n.xm3.nsg13_hv_pmos[vdss])
+let vdsat_M4 = abs(@n.xm4.nsg13_hv_pmos[vdss])
+print v(vb) vgs_M1 vgs_M2
+print id1_uA id2_uA gm1_uS gm2_uS
+print vdsat_M1 vdsat_M2 vdsat_M3 vdsat_M4
+
+* ---------- Line regulation (VDD sweep) ----------
+dc vdd 0 4 10m
+let id1_uA = @n.xm1.nsg13_hv_nmos[ids]*1e6
+let id2_uA = @n.xm2.nsg13_hv_nmos[ids]*1e6
+plot id1_uA id2_uA
+meas dc id1_3p0 find id1_uA at=3.0
+meas dc id1_3p6 find id1_uA at=3.6
+let line_reg = (id1_3p6-id1_3p0)/id1_3p0/0.6*100
+echo Line regulation [%/V] = $&line_reg
+
+* ---------- Temperature coefficient (VDD = 3.3 V) ----------
+dc temp -40 125 1
+let id1_uA = abs(@n.xm1.nsg13_hv_nmos[ids])*1e6
+let id2_uA = abs(@n.xm2.nsg13_hv_nmos[ids])*1e6
+plot id1_uA id2_uA
+meas dc id1_max max id1_uA
+meas dc id1_min min id1_uA
+meas dc id1_27 find id1_uA at=27
+let tc = (id1_max-id1_min)/id1_27/165*1e6
+echo TC [ppm/C] = $&tc
+.endc
+
+
+
+
+.save all
+.save @n.xm1.nsg13_hv_nmos[ids]
+.save @n.xm2.nsg13_hv_nmos[ids]
+
+
+
+
+
+
+.lib cornerMOSlv.lib mos_tt
+.lib cornerMOShv.lib mos_tt
+.lib cornerHBT.lib hbt_typ
+.lib cornerRES.lib res_typ
+.lib cornerCAP.lib cap_typ
+
+
+**** end user architecture code
+**.ends
+.GLOBAL GND
+.end
